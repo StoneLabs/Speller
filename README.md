@@ -15,11 +15,22 @@
 
 </div>
 
+---
+
+**TLDR**: Speller helps you proofread long-form writing on your own hardware. Paste from Word or LibreOffice, run a paragraph-by-paragraph review, and read suggestions as underlines and notes in the margin — without sending your manuscript to the cloud.
+
+### What ~real authors~ **happy users** say:
+> I suck at line edits. Speller has saved me many hours of hunting down spelling and grammar issues. Would recommend!
+>
+> ~ Me
+
+## Screenshots
+
+
 ![Review mode — paragraph diffs and marginalia](images/review_mode_screenshot.png)
 
 ![Close-up — underlines and marginal notes](images/closeup_1.png)
 
-Speller helps you proofread long-form writing on your own hardware. Paste from Word or LibreOffice, run a paragraph-by-paragraph review, and read suggestions as underlines and notes in the margin — without sending your manuscript to the cloud.
 
 ## Features
 
