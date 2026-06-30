@@ -1,0 +1,60 @@
+:root {
+  --bg: #ece6dc;
+  --paper: #f8f4ec;
+  --margin-bg: #f1ebe2;
+  --ink: #1f1a16;
+  --text-muted: #6f655c;
+  --gutter: #9a8f84;
+  --border: #d8cfc2;
+  --border-subtle: #e6ddd2;
+  --accent: #4a6b5c;
+  --issue-color: #c4544a;
+  --hint-color: #8a6a3d;
+  --hint-border: rgba(138, 106, 61, 0.35);
+  --success: #3f7356;
+  --error: #b54a42;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --shadow: 0 18px 50px rgba(42, 30, 18, 0.08);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-serif);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.65), transparent 40%),
+    linear-gradient(180deg, #e7e0d5 0%, #ebe4da 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+fieldset {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(74, 107, 92, 0.25);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cfc4b6;
+  border-radius: 999px;
+}
