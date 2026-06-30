@@ -9,18 +9,65 @@ const props = defineProps({
 })
 
 const textRefs = ref([])
+/** @type {Record<number, 'original' | 'corrected'>} */
+const viewMode = ref({})
 
 function setTextRef(el, index) {
   if (el) textRefs.value[index] = el
 }
 
+function result(index) {
+  return props.results[index] ?? null
+}
+
+function status(index) {
+  if (props.checkingIndex === index) return 'checking'
+  const r = result(index)
+  if (!r) return 'pending'
+  if (r.error) return 'error'
+  if (r.issues?.length || r.notes?.length || r.hint) return 'notes'
+  return 'clean'
+}
+
+function isClean(index) {
+  return status(index) === 'clean'
+}
+
+function hasCorrection(index) {
+  const r = result(index)
+  if (!r || r.error) return false
+  return Boolean(r.corrected && r.corrected !== r.original)
+}
+
+function showingCorrected(index) {
+  return viewMode.value[index] === 'corrected'
+}
+
+function toggleView(index) {
+  viewMode.value[index] = showingCorrected(index) ? 'original' : 'corrected'
+  nextTick(() => renderText(index))
+}
+
 function renderText(index) {
   const el = textRefs.value[index]
   const para = props.paragraphs[index]
+  const r = result(index)
   if (!el || !para) return
+
+  el.classList.remove('is-clean', 'is-corrected-view')
+
+  if (isClean(index)) {
+    el.classList.add('is-clean')
+  }
+
+  if (showingCorrected(index) && r?.corrected) {
+    el.classList.add('is-corrected-view')
+    el.textContent = r.corrected
+    return
+  }
+
   el.innerHTML = para.html
-  const result = props.results[index]
-  if (result?.issues?.length) applyIssueMarks(el, result.issues)
+  if (r?.issues?.length) applyIssueMarks(el, r.issues)
 }
 
 function renderAll() {
@@ -37,34 +84,38 @@ watch(
 
 watch(
   () => props.results,
-  () => nextTick(renderAll),
+  () => {
+    viewMode.value = {}
+    nextTick(renderAll)
+  },
   { deep: true },
 )
-
-function result(index) {
-  return props.results[index] ?? null
-}
-
-function status(index) {
-  if (props.checkingIndex === index) return 'checking'
-  const r = result(index)
-  if (!r) return 'pending'
-  if (r.error) return 'error'
-  if (r.issues?.length || r.notes?.length || r.hint) return 'notes'
-  return 'clean'
-}
 </script>
 
 <template>
   <div class="review-wrap">
     <div class="review-grid">
       <div class="ghead ghead-num" />
-      <div class="ghead">Manuscript</div>
+      <div class="ghead ghead-manuscript">
+        <span>Manuscript</span>
+        <span class="format-note">Bold, <em>italic</em>, and underline are preserved and sent to the model.</span>
+      </div>
       <div class="ghead ghead-notes">Marginalia</div>
 
       <template v-for="(para, index) in paragraphs" :key="para.id">
-        <div class="gnum" :class="{ active: checkingIndex === index }">
-          <span>{{ index + 1 }}</span>
+        <div class="gnum" :class="{ active: checkingIndex === index, clean: isClean(index) }">
+          <button
+            v-if="hasCorrection(index)"
+            type="button"
+            class="view-toggle"
+            :class="{ on: showingCorrected(index) }"
+            :title="showingCorrected(index) ? 'Show original with marks' : 'Show AI-corrected text'"
+            :aria-label="showingCorrected(index) ? 'Show original' : 'Show AI correction'"
+            @click="toggleView(index)"
+          >
+            {{ showingCorrected(index) ? 'Orig' : 'AI' }}
+          </button>
+          <span class="line-num">{{ index + 1 }}</span>
         </div>
 
         <div class="gtext" :ref="(el) => setTextRef(el, index)" />
@@ -120,11 +171,10 @@ function status(index) {
 
 .review-grid {
   display: grid;
-  grid-template-columns: 3rem minmax(0, 1.18fr) minmax(300px, 0.82fr);
+  grid-template-columns: 3.75rem minmax(0, 1.18fr) minmax(300px, 0.82fr);
   align-content: start;
 }
 
-/* Header row — sticky */
 .ghead {
   position: sticky;
   top: 0;
@@ -143,12 +193,32 @@ function status(index) {
   padding: 0;
 }
 
+.ghead-manuscript {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-transform: uppercase;
+}
+
+.format-note {
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+  opacity: 0.85;
+  font-style: normal;
+}
+
+.format-note em {
+  font-style: italic;
+}
+
 .ghead-notes {
   background: var(--margin-bg);
   border-left: 1px solid var(--border);
 }
 
-/* Per-paragraph cells */
 .gnum,
 .gtext,
 .gnotes {
@@ -159,21 +229,64 @@ function status(index) {
 
 .gnum {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
   padding-left: 6px;
-  padding-right: 12px;
+  padding-right: 10px;
   font-family: var(--font-mono);
   font-size: 0.74rem;
-  line-height: 1.85;
+  line-height: 1.2;
   color: var(--gutter);
   user-select: none;
   background: rgba(0, 0, 0, 0.015);
   border-right: 1px solid var(--border-subtle);
 }
 
+.gnum.clean {
+  opacity: 0.45;
+}
+
 .gnum.active {
+  opacity: 1;
   color: var(--accent);
+}
+
+.gnum.active .line-num {
   font-weight: 600;
+}
+
+.view-toggle {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.2;
+  opacity: 0.7;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.view-toggle:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.view-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  opacity: 1;
+}
+
+.line-num {
+  line-height: 1.85;
 }
 
 .gtext {
@@ -184,6 +297,17 @@ function status(index) {
   line-height: 1.85;
   color: var(--ink);
   word-break: break-word;
+  transition: color 0.15s, opacity 0.15s;
+}
+
+.gtext.is-clean {
+  color: var(--text-muted);
+  opacity: 0.52;
+}
+
+.gtext.is-corrected-view {
+  color: var(--ink);
+  opacity: 1;
 }
 
 .gtext :deep(b),
@@ -357,7 +481,7 @@ function status(index) {
 
 @media (max-width: 900px) {
   .review-grid {
-    grid-template-columns: 2.4rem 1fr;
+    grid-template-columns: 3.25rem 1fr;
   }
   .ghead-notes {
     display: none;
@@ -366,10 +490,13 @@ function status(index) {
     grid-column: 1 / -1;
     border-left: none;
     border-top: 1px dashed var(--border-subtle);
-    padding-left: 2.4rem;
+    padding-left: 3.25rem;
   }
   .gnotes[data-status='clean'],
   .gnotes[data-status='pending'] {
+    display: none;
+  }
+  .format-note {
     display: none;
   }
 }

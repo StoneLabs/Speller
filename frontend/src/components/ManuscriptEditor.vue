@@ -77,6 +77,9 @@ defineExpose({ focus })
 
 <template>
   <div class="editor-wrap">
+    <div class="editor-toolbar">
+      <span class="toolbar-note">Bold, <em>italic</em>, and underline from Word or LibreOffice are preserved and sent to the model.</span>
+    </div>
     <div class="editor-inner">
       <div
         ref="editorRef"
@@ -104,6 +107,22 @@ defineExpose({ focus })
   overflow: hidden;
   background: var(--paper);
   box-shadow: var(--shadow);
+}
+
+.editor-toolbar {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.toolbar-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.toolbar-note em {
+  font-style: italic;
 }
 
 .editor-inner {
