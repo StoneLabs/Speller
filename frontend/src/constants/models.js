@@ -10,7 +10,8 @@ export function syncModelList(selectedModel = '') {
 }
 
 export function setAvailableModels(list, selectedModel = '') {
-  const merged = [...new Set([selectedModel, ...list].filter(Boolean))]
+  const items = Array.isArray(list) ? list : []
+  const merged = [...new Set([selectedModel, ...items].filter(Boolean))]
   availableModels.value = merged
   return merged
 }

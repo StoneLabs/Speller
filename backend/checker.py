@@ -7,6 +7,13 @@ import httpx
 from prompts import build_system_prompt, build_user_message
 
 
+def _root_url(api_base: str) -> str:
+    base = api_base.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[:-3]
+    return base
+
+
 def _extract_json(text: str) -> dict:
     text = text.strip()
     if not text:
@@ -190,6 +197,109 @@ def _build_messages(
     return [{"role": "user", "content": f"{system}\n\n{user}"}]
 
 
+def _normalize_model_name(name: str) -> str:
+    return name.removesuffix(":latest").strip()
+
+
+def _model_available(name: str, models: list[str]) -> bool:
+    if not name:
+        return False
+    target = _normalize_model_name(name)
+    for model in models:
+        candidate = _normalize_model_name(model)
+        if candidate == target or candidate.endswith("/" + target.split("/")[-1]):
+            return True
+    return False
+
+
+async def ollama_tags(*, api_base: str, timeout: float = 15.0) -> list[str]:
+    url = f"{_root_url(api_base)}/api/tags"
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(url)
+            if response.is_error:
+                return []
+            data = response.json()
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    names = []
+    for item in data.get("models") or []:
+        if isinstance(item, dict):
+            name = item.get("name", "")
+            if name:
+                names.append(name)
+    return names
+
+
+async def is_ollama(*, api_base: str, timeout: float = 5.0) -> bool:
+    url = f"{_root_url(api_base)}/api/version"
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(url)
+            if response.is_error:
+                return False
+            data = response.json()
+            return isinstance(data, dict) and bool(data.get("version"))
+    except Exception:
+        return False
+
+
+async def probe_ollama_pull(
+    *,
+    api_base: str,
+    model: str,
+    timeout: float = 5.0,
+) -> dict | None:
+    """Peek at an in-progress Ollama pull (joins an existing download)."""
+    url = f"{_root_url(api_base)}/api/pull"
+    payload = {"model": model, "stream": True}
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream("POST", url, json=payload) as response:
+                if response.is_error:
+                    return None
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    status = event.get("status") or ""
+                    lower = status.lower()
+                    if status == "success":
+                        return {"active": False, "complete": True, "model": model}
+                    if "downloading" in lower:
+                        total = event.get("total")
+                        completed = event.get("completed")
+                        percent = None
+                        if total and completed is not None and total > 0:
+                            percent = round(100 * completed / total, 1)
+                        return {
+                            "active": True,
+                            "model": model,
+                            "status": status,
+                            "percent": percent,
+                        }
+                    if status in (
+                        "verifying sha256 digest",
+                        "writing manifest",
+                        "removing any unused layers",
+                    ):
+                        return {
+                            "active": True,
+                            "model": model,
+                            "status": status,
+                            "percent": None,
+                        }
+                    # "pulling manifest" on an installed model resolves quickly — keep reading.
+    except Exception:
+        return None
+    return None
+
+
 async def list_models(*, api_base: str, api_key: str = "", timeout: float = 15.0) -> list[str]:
     base = api_base.rstrip("/")
     if not base.endswith("/v1"):
@@ -200,12 +310,50 @@ async def list_models(*, api_base: str, api_key: str = "", timeout: float = 15.0
         if response.is_error:
             _raise_api_error(response)
         data = response.json()
+    if not isinstance(data, dict):
+        return []
+    raw = data.get("data")
+    if raw is None:
+        raw = data.get("models")
     models = []
-    for item in data.get("data", []):
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
         model_id = item.get("id", "")
         if model_id and "embed" not in model_id.lower():
             models.append(model_id)
     return models
+
+
+async def list_models_with_meta(
+    *,
+    api_base: str,
+    api_key: str = "",
+    pull_model: str | None = None,
+    timeout: float = 15.0,
+) -> dict:
+    ollama = await is_ollama(api_base=api_base, timeout=min(timeout, 5.0))
+    models = await list_models(api_base=api_base, api_key=api_key, timeout=timeout)
+    if ollama:
+        tag_models = await ollama_tags(api_base=api_base, timeout=timeout)
+        models = list(dict.fromkeys([*models, *tag_models]))
+    result: dict = {
+        "models": models,
+        "backend": "ollama" if ollama else "openai-compatible",
+    }
+
+    if not ollama:
+        return result
+
+    hint = (pull_model or "").strip()
+    if hint and not _model_available(hint, models):
+        pull = await probe_ollama_pull(api_base=api_base, model=hint)
+        if pull and pull.get("active"):
+            result["pull"] = pull
+    elif not models:
+        result["pull"] = {"active": False, "hint": "no_models"}
+
+    return result
 
 
 async def test_connection(*, api_base: str, model: str, api_key: str = "", timeout: float = 30.0) -> dict:

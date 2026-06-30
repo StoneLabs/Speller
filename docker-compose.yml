@@ -1,0 +1,76 @@
+x-ollama-model: &ollama-model alibayram/Qwen3-30B-A3B-Instruct-2507
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: speller-ollama
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    networks:
+      - speller-net
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=3
+      - OLLAMA_NUM_PARALLEL=4
+      - OLLAMA_KEEP_ALIVE=1m
+      - OLLAMA_CONTEXT_LENGTH=16384
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: speller-ollama-pull
+    networks:
+      - speller-net
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: *ollama-model
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Pulling $$OLLAMA_MODEL (this may take a while)..."
+        ollama pull "$$OLLAMA_MODEL"
+        echo "Model ready."
+    restart: "no"
+
+  speller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: speller
+    networks:
+      - speller-net
+    ports:
+      - "${SPELLER_PORT:-8000}:8000"
+    environment:
+      SPELLER_LLM_API_BASE: ${SPELLER_LLM_API_BASE:-http://ollama:11434}
+      SPELLER_OLLAMA_PULL_MODEL: *ollama-model
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  speller-net:
+    driver: bridge
+
+volumes:
+  ollama-data:

@@ -17,7 +17,11 @@ export async function fetchModels({ apiBase, apiKey }) {
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(parseError(body, `Failed to load models (${response.status})`))
-  return body.models || []
+  return {
+    models: body.models || [],
+    backend: body.backend || null,
+    pull: body.pull || null,
+  }
 }
 
 export async function testConnection({ apiBase, model, apiKey }) {

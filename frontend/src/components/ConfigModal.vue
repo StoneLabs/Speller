@@ -18,6 +18,29 @@ const modelsMessage = ref(null) // { ok: boolean, text: string }
 const testing = ref(false)
 const testStatus = ref(null) // { ok: boolean, text: string }
 
+function modelsStatusMessage({ models, backend, pull }) {
+  if (pull?.active) {
+    const name = pull.model || 'model'
+    if (pull.percent != null) {
+      return { ok: false, text: `Ollama is downloading ${name}… ${pull.percent}%` }
+    }
+    if (pull.status && pull.status !== 'waiting') {
+      return { ok: false, text: `Ollama is downloading ${name}… (${pull.status})` }
+    }
+    return { ok: false, text: `Ollama is still downloading ${name}…` }
+  }
+  if (models.length) {
+    return {
+      ok: true,
+      text: `Found ${models.length} model${models.length === 1 ? '' : 's'}`,
+    }
+  }
+  if (backend === 'ollama') {
+    return { ok: false, text: 'Ollama connected — no models installed yet.' }
+  }
+  return { ok: false, text: 'No models available yet.' }
+}
+
 async function loadModels({ silent = false } = {}) {
   if (!props.config.apiBase?.trim()) {
     if (!silent) modelsMessage.value = { ok: false, text: 'Enter your API URL first.' }
@@ -26,7 +49,7 @@ async function loadModels({ silent = false } = {}) {
   loadingModels.value = true
   if (!silent) modelsMessage.value = null
   try {
-    const remote = await fetchModels({
+    const { models: remote, backend, pull } = await fetchModels({
       apiBase: props.config.apiBase,
       apiKey: props.config.apiKey,
     })
@@ -34,11 +57,8 @@ async function loadModels({ silent = false } = {}) {
     if (!props.config.model && merged.length) {
       props.config.model = merged[0]
     }
-    if (!silent) {
-      modelsMessage.value = {
-        ok: true,
-        text: `Found ${remote.length} model${remote.length === 1 ? '' : 's'}`,
-      }
+    if (!silent || pull?.active) {
+      modelsMessage.value = modelsStatusMessage({ models: remote, backend, pull })
     }
   } catch (e) {
     if (!silent) modelsMessage.value = { ok: false, text: e.message }

@@ -1,11 +1,17 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from checker import check_line, list_models, test_connection
+from checker import check_line, list_models_with_meta, test_connection
 from prompts import STRICTNESS
 
 app = FastAPI(title="Speller", version="1.0.0")
+
+DIST_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,6 +47,13 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/defaults")
+async def defaults():
+    return {
+        "api_base": os.environ.get("SPELLER_LLM_API_BASE", ""),
+    }
+
+
 @app.get("/api/strictness-levels")
 async def strictness_levels():
     return [
@@ -52,11 +65,12 @@ async def strictness_levels():
 @app.post("/api/models")
 async def api_models(req: AiConfig):
     try:
-        models = await list_models(
+        pull_model = os.environ.get("SPELLER_OLLAMA_PULL_MODEL", "").strip() or None
+        return await list_models_with_meta(
             api_base=req.api_base,
             api_key=req.api_key,
+            pull_model=pull_model,
         )
-        return {"models": models}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -121,3 +135,7 @@ async def api_check_document(req: CheckDocumentRequest):
             }
         results.append(result)
     return {"results": results}
+
+
+if DIST_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
