@@ -104,6 +104,13 @@ watch(
 
       <template v-for="(para, index) in paragraphs" :key="para.id">
         <div class="gnum" :class="{ active: checkingIndex === index, clean: isClean(index) }">
+          <span class="line-num">{{ index + 1 }}</span>
+        </div>
+
+        <div
+          class="gtext-cell"
+          :class="{ 'is-ai-view': showingCorrected(index) && hasCorrection(index) }"
+        >
           <button
             v-if="hasCorrection(index)"
             type="button"
@@ -113,12 +120,13 @@ watch(
             :aria-label="showingCorrected(index) ? 'Show original' : 'Show AI correction'"
             @click="toggleView(index)"
           >
-            {{ showingCorrected(index) ? 'Orig' : 'AI' }}
+            ↻
           </button>
-          <span class="line-num">{{ index + 1 }}</span>
+          <div class="gtext" :ref="(el) => setTextRef(el, index)" />
+          <span v-if="showingCorrected(index) && hasCorrection(index)" class="ai-version-badge">
+            AI Version
+          </span>
         </div>
-
-        <div class="gtext" :ref="(el) => setTextRef(el, index)" />
 
         <div class="gnotes" :data-status="status(index)">
           <div v-if="status(index) === 'checking'" class="note-checking">
@@ -220,7 +228,7 @@ watch(
 }
 
 .gnum,
-.gtext,
+.gtext-cell,
 .gnotes {
   border-bottom: 1px solid var(--border-subtle);
   padding-top: 18px;
@@ -231,7 +239,7 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  justify-content: flex-start;
   padding-left: 6px;
   padding-right: 10px;
   font-family: var(--font-mono);
@@ -256,33 +264,60 @@ watch(
   font-weight: 600;
 }
 
+.gtext-cell {
+  position: relative;
+  padding-left: 20px;
+  padding-right: 28px;
+  min-height: 3.5rem;
+}
+
+.gtext-cell.is-ai-view {
+  background: rgba(196, 84, 74, 0.14);
+  padding-bottom: 30px;
+}
+
 .view-toggle {
+  position: absolute;
+  top: 14px;
+  right: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 2px 5px;
-  border-radius: 4px;
+  font-size: 1rem;
+  line-height: 1;
   cursor: pointer;
-  line-height: 1.2;
-  opacity: 0.7;
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+  opacity: 0.75;
+  box-shadow: 0 2px 8px rgba(42, 30, 18, 0.08);
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
 }
 
 .view-toggle:hover {
   opacity: 1;
   border-color: var(--accent);
   color: var(--accent);
+  transform: scale(1.05);
 }
 
 .view-toggle.on {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--issue-color);
+  border-color: #8f3a32;
   color: #fff;
   opacity: 1;
+  transform: rotate(180deg);
+}
+
+.view-toggle.on:hover {
+  color: #fff;
+  border-color: #7a322b;
+  transform: rotate(180deg) scale(1.05);
 }
 
 .line-num {
@@ -290,14 +325,14 @@ watch(
 }
 
 .gtext {
-  padding-left: 20px;
-  padding-right: 28px;
+  padding-right: 2rem;
+  padding-bottom: 0.25rem;
   font-family: var(--font-serif);
   font-size: 1.12rem;
   line-height: 1.85;
   color: var(--ink);
   word-break: break-word;
-  transition: color 0.15s, opacity 0.15s;
+  transition: color 0.15s, opacity 0.15s, background 0.15s;
 }
 
 .gtext.is-clean {
@@ -306,8 +341,33 @@ watch(
 }
 
 .gtext.is-corrected-view {
-  color: var(--ink);
+  color: #a83d34;
   opacity: 1;
+  background: rgba(196, 84, 74, 0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.ai-version-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c4544a;
+  -webkit-text-stroke: 0.6px #000;
+  paint-order: stroke fill;
+  text-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000;
+  pointer-events: none;
+  user-select: none;
 }
 
 .gtext :deep(b),
