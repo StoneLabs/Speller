@@ -19,6 +19,10 @@ const testing = ref(false)
 const testStatus = ref(null) // { ok: boolean, text: string }
 
 async function loadModels({ silent = false } = {}) {
+  if (!props.config.apiBase?.trim()) {
+    if (!silent) modelsMessage.value = { ok: false, text: 'Enter your API URL first.' }
+    return
+  }
   loadingModels.value = true
   if (!silent) modelsMessage.value = null
   try {
@@ -26,8 +30,8 @@ async function loadModels({ silent = false } = {}) {
       apiBase: props.config.apiBase,
       apiKey: props.config.apiKey,
     })
-    const merged = setAvailableModels(remote)
-    if (!merged.includes(props.config.model) && merged.length) {
+    const merged = setAvailableModels(remote, props.config.model)
+    if (!props.config.model && merged.length) {
       props.config.model = merged[0]
     }
     if (!silent) {
@@ -53,7 +57,9 @@ onMounted(async () => {
       { level: 3, name: 'Editor', description: 'Thorough editing suggestions.' },
     ]
   }
-  await loadModels({ silent: true })
+  if (props.config.apiBase?.trim()) {
+    await loadModels({ silent: true })
+  }
 })
 
 watch(
@@ -97,7 +103,7 @@ async function runTest() {
         <div class="modal-body">
           <label class="field">
             <span>API base URL</span>
-            <input v-model="config.apiBase" type="url" placeholder="http://lab-gpu2:1234" />
+            <input v-model="config.apiBase" type="url" placeholder="http://your-ip:1234" />
           </label>
 
           <label class="field">
@@ -108,6 +114,7 @@ async function runTest() {
               </button>
             </span>
             <select v-model="config.model">
+              <option v-if="!config.model" disabled value="">Select a model</option>
               <option v-for="m in availableModels" :key="m" :value="m">{{ m }}</option>
             </select>
             <small v-if="modelsMessage" :class="modelsMessage.ok ? 'msg-ok' : 'msg-bad'">

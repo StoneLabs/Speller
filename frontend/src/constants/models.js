@@ -1,15 +1,16 @@
 import { ref } from 'vue'
 
-export const DEFAULT_MODELS = [
-  'qwen/qwen3.6-27b',
-  'mistralai/mistral-7b-instruct-v0.3',
-]
+export const availableModels = ref([])
 
-// Shared across the top bar selector and the Settings modal.
-export const availableModels = ref([...DEFAULT_MODELS])
+export function syncModelList(selectedModel = '') {
+  if (!selectedModel) return
+  if (!availableModels.value.includes(selectedModel)) {
+    availableModels.value = [selectedModel, ...availableModels.value]
+  }
+}
 
-export function setAvailableModels(list) {
-  const merged = [...new Set([...DEFAULT_MODELS, ...list])]
+export function setAvailableModels(list, selectedModel = '') {
+  const merged = [...new Set([selectedModel, ...list].filter(Boolean))]
   availableModels.value = merged
   return merged
 }

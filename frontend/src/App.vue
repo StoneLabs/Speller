@@ -41,6 +41,7 @@ const statusText = computed(() => {
 const statusClass = computed(() => ({ 'status-pill': true, [phase.value]: true }))
 
 function shortModelName(id) {
+  if (!id) return ''
   return id.split('/').pop() || id
 }
 
@@ -52,6 +53,17 @@ function countNotes() {
 }
 
 async function runReview() {
+  if (!config.apiBase?.trim()) {
+    phase.value = 'error'
+    errorMessage.value = 'Set your API URL in Settings (⚙).'
+    return
+  }
+  if (!config.model?.trim()) {
+    phase.value = 'error'
+    errorMessage.value = 'Choose a model in Settings (⚙).'
+    return
+  }
+
   const paras = extractParagraphs(editorHtml.value)
   if (!paras.length) {
     phase.value = 'error'
@@ -139,7 +151,7 @@ onMounted(() => {
           <svg class="github-icon" viewBox="0 0 16 16" aria-hidden="true">
             <path
               fill="currentColor"
-              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.778-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
             />
           </svg>
           StoneLabs/Speller
@@ -150,7 +162,7 @@ onMounted(() => {
         <div :class="statusClass">
           <span class="status-dot" />
           <span class="status-main">{{ statusText }}</span>
-          <span v-if="phase !== 'error'" class="status-sub">{{ shortModelName(config.model) }}</span>
+          <span v-if="phase !== 'error' && config.model" class="status-sub">{{ shortModelName(config.model) }}</span>
         </div>
       </div>
 
@@ -158,6 +170,7 @@ onMounted(() => {
         <label class="model-select">
           <span class="sr-only">Model</span>
           <select v-model="config.model" :disabled="checking">
+            <option v-if="!config.model" disabled value="">Model…</option>
             <option v-for="m in availableModels" :key="m" :value="m">{{ shortModelName(m) }}</option>
           </select>
         </label>

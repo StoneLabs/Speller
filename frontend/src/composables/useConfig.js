@@ -1,10 +1,11 @@
 import { reactive, watch } from 'vue'
+import { syncModelList } from '../constants/models.js'
 
 const STORAGE_KEY = 'speller-config'
 
 const defaults = {
-  apiBase: 'http://lab-gpu2:1234',
-  model: 'qwen/qwen3.6-27b',
+  apiBase: '',
+  model: '',
   apiKey: '',
   contextRange: 2,
   strictness: 2,
@@ -13,7 +14,11 @@ const defaults = {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...defaults, ...JSON.parse(raw) }
+    if (raw) {
+      const config = { ...defaults, ...JSON.parse(raw) }
+      syncModelList(config.model)
+      return config
+    }
   } catch {
     /* ignore */
   }
@@ -27,6 +32,7 @@ export function useConfig() {
     config,
     (value) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+      syncModelList(value.model)
     },
     { deep: true },
   )

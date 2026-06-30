@@ -17,8 +17,8 @@ app.add_middleware(
 
 
 class AiConfig(BaseModel):
-    api_base: str = "http://lab-gpu2:1234"
-    model: str = "qwen/qwen3.6-27b"
+    api_base: str = ""
+    model: str = ""
     api_key: str = ""
 
 

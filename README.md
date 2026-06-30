@@ -35,11 +35,11 @@ Or run both with `./dev.sh`, then open http://localhost:5173
 
 | Setting | Value |
 |---------|-------|
-| API | `http://lab-gpu2:1234` |
-| Model | `qwen/qwen3.6-27b` |
+| API | *(none — set `http://your-ip:1234` in Settings)* |
+| Model | *(none — refresh models after setting API)* |
 | Context | 2 paragraphs before/after |
 
-Use **Settings → Test connection** before your first review.
+Settings are saved in your browser (`localStorage`). Use **Settings → Test connection** before your first review.
 
 ## Strictness
 
