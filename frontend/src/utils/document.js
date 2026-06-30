@@ -226,10 +226,7 @@ export function htmlToMarkdown(html) {
 export function applyIssueMarks(node, issues) {
   if (!issues?.length) return
 
-  const spans = issues.filter((i) => i.end > i.start)
-  if (!spans.length) return
-
-  const sorted = [...spans].sort((a, b) => b.start - a.start)
+  const sorted = [...issues].sort((a, b) => b.start - a.start)
 
   const textNodes = []
   const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT)
@@ -244,7 +241,37 @@ export function applyIssueMarks(node, issues) {
     pos += len
   }
 
+  function locate(offset) {
+    for (const r of ranges) {
+      if (offset >= r.start && offset <= r.end) {
+        return { node: r.node, offset: offset - r.start }
+      }
+    }
+    return null
+  }
+
   for (const issue of sorted) {
+    const tip = [issue.message, issue.suggestion && `→ ${issue.suggestion}`].filter(Boolean).join(' ')
+
+    // Pure insertion: collapsed range — show suggested text at the gap.
+    if (issue.end === issue.start) {
+      if (!issue.suggestion) continue
+      const loc = locate(issue.start)
+      if (!loc) continue
+
+      const mark = document.createElement('span')
+      mark.className = 'issue-mark issue-insert'
+      mark.dataset.type = issue.type || 'grammar'
+      if (tip) mark.title = tip
+      mark.textContent = `+${issue.suggestion}`
+
+      const range = document.createRange()
+      range.setStart(loc.node, loc.offset)
+      range.collapse(true)
+      range.insertNode(mark)
+      continue
+    }
+
     let startNode = null
     let startOffset = 0
     let endNode = null
@@ -269,7 +296,6 @@ export function applyIssueMarks(node, issues) {
     const mark = document.createElement('span')
     mark.className = 'issue-mark'
     mark.dataset.type = issue.type || 'grammar'
-    const tip = [issue.message, issue.suggestion && `→ ${issue.suggestion}`].filter(Boolean).join(' ')
     if (tip) mark.title = tip
 
     try {

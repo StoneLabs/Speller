@@ -393,6 +393,13 @@ watch(
   padding: 0 1px;
 }
 
+.gtext :deep(.issue-mark.issue-insert) {
+  text-decoration: none;
+  color: var(--success);
+  font-weight: 500;
+  background: rgba(74, 107, 92, 0.12);
+}
+
 .gnotes {
   padding-left: 20px;
   padding-right: 20px;

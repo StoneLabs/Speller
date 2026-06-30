@@ -357,6 +357,13 @@ watch(
   border-radius: 2px;
 }
 
+.para :deep(.issue-mark.issue-insert) {
+  text-decoration: none;
+  color: var(--success);
+  font-weight: 500;
+  background: rgba(74, 107, 92, 0.12);
+}
+
 .note {
   padding: 2px 0 10px;
 }
